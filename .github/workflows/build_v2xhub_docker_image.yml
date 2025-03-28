@@ -14,12 +14,16 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Confirm submodules present
+        run: |
+          pwd
+          ls -R .src/tmx/Asn_J2735/src/r63 || true          
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         with:
           platforms: arm64
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v5
         with:
           install: true
           use: true
