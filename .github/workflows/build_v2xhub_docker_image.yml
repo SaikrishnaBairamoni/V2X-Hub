@@ -17,7 +17,11 @@ jobs:
       - name: Confirm submodules present
         run: |
           pwd
-          ls -R .src/tmx/Asn_J2735/src/r63 || true          
+          ls -R /home/runner/work/V2X-Hub/V2X-Hub/src/tmx/Asn_J2735/src/r63 || true
+      - name: Find jacoco.xml
+        shell: bash
+        run: |
+          find "/home/runner/work/V2X-Hub/V2X-Hub" -name "r63"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         with:
