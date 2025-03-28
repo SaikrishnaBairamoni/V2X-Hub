@@ -27,9 +27,11 @@ RUN ldconfig
 # 4. Copy & build internal components
 COPY ./src /home/V2X-Hub/src/
 
-# --- DEBUG STEP: List files in r63 to ensure they're actually here ---
 RUN echo "=== DEBUG: Listing contents of r63 ===" && \
     ls -R /home/V2X-Hub/src/tmx/Asn_J2735/src/r63 || true
+
+RUN echo "=== DEBUG: Listing contents of r2020 ===" && \
+    ls -R /home/V2X-Hub/src/tmx/Asn_J2735/src/r2020 || true
 
 WORKDIR /home/V2X-Hub/src/
 RUN ./build.sh release
