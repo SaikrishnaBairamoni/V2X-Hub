@@ -18,10 +18,14 @@ jobs:
         run: |
           pwd
           ls -R /home/runner/work/V2X-Hub/V2X-Hub/src/tmx/Asn_J2735/src/r63 || true
+      - name: Debug r2020 folder in GitHub Actions
+        run: |
+          pwd
+          ls -R /home/runner/work/V2X-Hub/V2X-Hub/src/tmx/Asn_J2735/src/r2020 || true
       - name: Find jacoco.xml
         shell: bash
         run: |
-          find "/home/runner/work/V2X-Hub/V2X-Hub" -name "r63"
+          find "/home/runner/work/V2X-Hub/V2X-Hub" -name "r2020"
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         with:
