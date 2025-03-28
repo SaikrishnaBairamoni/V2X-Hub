@@ -3,15 +3,18 @@ ARG UBUNTU_VERSION=jammy-20230126
 FROM ubuntu:$UBUNTU_VERSION AS dependencies
 
 ENV DEBIAN_FRONTEND=noninteractive
+
+# 1. Copy & run install_dependencies.sh
 ADD scripts/install_dependencies.sh /usr/local/bin/
 RUN sed -i 's|http://archive.ubuntu.com|http://us.archive.ubuntu.com|g' /etc/apt/sources.list
 RUN /usr/local/bin/install_dependencies.sh
 
-# build out ext components
+# 2. Build ext components
 COPY ./ext /home/V2X-Hub/ext
 WORKDIR /home/V2X-Hub/ext/
 RUN ./build.sh
 
+# 3. Copy container scripts
 ADD container/wait-for-it.sh /usr/local/bin/
 ADD container/service.sh /usr/local/bin/
 
@@ -21,15 +24,21 @@ RUN ./database.sh
 RUN ./library.sh
 RUN ldconfig
 
-# build internal components
+# 4. Copy & build internal components
 COPY ./src /home/V2X-Hub/src/
+
+# --- DEBUG STEP: List files in r63 to ensure they're actually here ---
+RUN echo "=== DEBUG: Listing contents of r63 ===" && \
+    ls -R /home/V2X-Hub/src/tmx/Asn_J2735/src/r63 || true
+
 WORKDIR /home/V2X-Hub/src/
 RUN ./build.sh release
 RUN ldconfig
 
-# run final image
+# --- Final image ---
 FROM ubuntu:$UBUNTU_VERSION AS v2xhub
 ENV DEBIAN_FRONTEND=noninteractive
+
 ADD scripts/deployment_dependencies.sh /usr/local/bin/
 RUN /usr/local/bin/deployment_dependencies.sh
 
@@ -39,6 +48,7 @@ RUN ./database.sh
 RUN ./library.sh
 RUN ldconfig
 
+# Copy build outputs from 'dependencies' stage
 COPY --from=dependencies /usr/local/plugins/ /usr/local/plugins/
 COPY --from=dependencies /usr/local/include/ /usr/local/include/
 COPY --from=dependencies /usr/local/lib/ /usr/local/lib/
@@ -49,6 +59,7 @@ COPY --from=dependencies /usr/local/share/ /usr/local/share/
 COPY --from=dependencies /var/www/plugins/ /var/www/plugins/
 COPY --from=dependencies /var/log/tmx/ /var/log/tmx/
 COPY --from=dependencies /opt/ /opt/
+
 ADD src/tmx/TmxCore/tmxcore.service /lib/systemd/system/
 ADD src/tmx/TmxCore/tmxcore.service /usr/sbin/
 RUN ldconfig
