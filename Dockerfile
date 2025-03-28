@@ -11,7 +11,7 @@ RUN /usr/local/bin/install_dependencies.sh
 
 # 2. Build ext components
 COPY ./ext /home/V2X-Hub/ext
-WORKDIR /home/V2X-Hub/ext/
+WORKDIR /home/V2X-Hub/ext
 RUN ./build.sh
 
 # 3. Copy container scripts
@@ -19,13 +19,13 @@ ADD container/wait-for-it.sh /usr/local/bin/
 ADD container/service.sh /usr/local/bin/
 
 COPY ./container /home/V2X-Hub/container
-WORKDIR /home/V2X-Hub/container/
+WORKDIR /home/V2X-Hub/container
 RUN ./database.sh
 RUN ./library.sh
 RUN ldconfig
 
 # 4. Copy & build internal components
-COPY ./src /home/V2X-Hub/src/
+COPY ./src /home/V2X-Hub/src
 
 RUN echo "=== DEBUG: Listing contents of r63 ===" && \
     ls -R /home/V2X-Hub/src/tmx/Asn_J2735/src/r63 || true
@@ -33,7 +33,7 @@ RUN echo "=== DEBUG: Listing contents of r63 ===" && \
 RUN echo "=== DEBUG: Listing contents of r2020 ===" && \
     ls -R /home/V2X-Hub/src/tmx/Asn_J2735/src/r2020 || true
 
-WORKDIR /home/V2X-Hub/src/
+WORKDIR /home/V2X-Hub/src
 RUN ./build.sh release
 RUN ldconfig
 
