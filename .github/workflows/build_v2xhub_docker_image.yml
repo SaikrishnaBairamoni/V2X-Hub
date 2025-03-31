@@ -9,49 +9,40 @@ jobs:
   build-multiarch-single:
     runs-on: ubuntu-22.04
     steps:
-      # 1) Checkout your code (including submodules, if needed)
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
 
-      # 2) Set up QEMU for arm64 cross-build
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         with:
           platforms: arm64
 
-      # 3) Set up a persistent Buildx builder (no ephemeral!)
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
         with:
           install: true
           use: true
-          ephemeral: false    # critical - ensures everything stays in one environment
+          ephemeral: false  
           driver-opts: |
             image=moby/buildkit:rootless
             network=host
 
-      # 4) Log in to Docker Hub
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 5) Build each architecture locally (without pushing)
       - name: Build both arches (locally)
         run: |
-          # Create local images for each arch with --load,
-          # so they exist in the local docker daemon
-
           # Build AMD64
           docker buildx build \
             --platform linux/amd64 \
             --load \
             --no-cache \
             -t myuser/v2xhub:temp-amd64 \
-            .
 
           # Build ARM64
           docker buildx build \
@@ -60,28 +51,15 @@ jobs:
             --no-cache \
             -t myuser/v2xhub:temp-arm64 \
             .
-
-          # At this point, we have two *local* images in the ephemeral runner’s docker daemon:
-          # myuser/v2xhub:temp-amd64 and myuser/v2xhub:temp-arm64
-          # Neither is pushed to Docker Hub yet.
-
-      # 6) Create a local multi‐arch manifest from those local images
       - name: Create & push final multi‐arch
         run: |
-          # We'll combine these two local references into a single final tag.
-          # Use 'docker manifest create' with local references:
           docker manifest create myuser/v2xhub:multiarch-only \
             myuser/v2xhub:temp-amd64 \
             myuser/v2xhub:temp-arm64
 
-          # Annotate each arch (optional, clarifies architecture in final manifest)
           docker manifest annotate myuser/v2xhub:multiarch-only \
             myuser/v2xhub:temp-amd64 --arch amd64 --os linux
           docker manifest annotate myuser/v2xhub:multiarch-only \
             myuser/v2xhub:temp-arm64 --arch arm64 --os linux
 
-          # Finally, push the unified multi‐arch tag to Docker Hub
           docker manifest push myuser/v2xhub:multiarch-only
-
-          # This single push means Docker Hub only sees "myuser/v2xhub:multiarch-only"
-          # for both archs. We never separately pushed "temp-amd64" or "temp-arm64."
