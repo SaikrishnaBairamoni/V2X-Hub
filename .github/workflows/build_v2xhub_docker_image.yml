@@ -1,5 +1,4 @@
 name: Build V2X-Hub Docker Image
-
 on:
   push:
     branches:
@@ -9,41 +8,24 @@ on:
 jobs:
   v2xhub-docker:
     runs-on: ubuntu-22.04
-
     steps:
-      # 1) Check out code (including submodules).
-      #    This ensures the Asn_J2735 directories (r63, r2020, etc.) are actually retrieved.
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      # 2) Debug checks: confirm r63/r2020 subfolders are present in the cloned repo
       - name: Confirm submodules present
         run: |
-          echo "=== Checking r63 folder ==="
           ls -R src/tmx/Asn_J2735/src/r63 || true
-
       - name: Debug r2020 folder in GitHub Actions
         run: |
-          echo "=== Checking r2020 folder ==="
           ls -R src/tmx/Asn_J2735/src/r2020 || true
-
       - name: Find 'r2020' references
         run: |
-          echo "=== Searching for r2020 in the entire workspace ==="
           find . -name "r2020"
-
-      # 3) Set up QEMU: This is a CPU emulator that allows us to "cross-build" for ARM64 on an x86 GitHub runner.
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v2
         with:
-          # We specify arm64 to emulate the ARM64 architecture
           platforms: arm64
-
-      # 4) Set up Buildx with ephemeral: false
-      #    ephemeral: false => we get a persistent BuildKit container so building multiple architectures
-      #    doesn't lose submodules or generated files between the steps.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
@@ -53,15 +35,11 @@ jobs:
           driver-opts: |
             image=moby/buildkit:rootless
             network=host
-
-      # 5) Log into Docker Hub so we can push images
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      # 6) Extract metadata for Docker (optional, if you want standardized tags/labels).
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v5
@@ -74,19 +52,11 @@ jobs:
             type=ref,event=pr
             # set latest tag for default branch
             type=raw,value=latest,enable={{is_default_branch}}
-
-      # 7) Build and Push Multi-Arch Image
-      #    This single step handles both amd64 and arm64 builds, then pushes them under one tag.
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          # Actually push to Docker Hub
           push: true
-          # Force fresh build so we see actual logs & no ephemeral caching issues
           no-cache: true
-          # Build for both x86_64 and ARM64 in a single pass
           platforms: linux/amd64,linux/arm64
-          # Use your Docker Hub repo + desired tag
           tags: saikrishnabairamoni/v2xhub:multiarch-test
-          # Attach any labels derived from the metadata step
           labels: ${{ steps.meta.outputs.labels }}
