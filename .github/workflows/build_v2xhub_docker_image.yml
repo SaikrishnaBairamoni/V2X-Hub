@@ -9,7 +9,7 @@ name: SingleJob-LocalMultiArch
 on:
   push:
     branches:
-      - main
+      - multiarch-test
 
 jobs:
   build-and-push:
