@@ -1,64 +1,69 @@
-name: Build V2X-Hub Docker Image
+################################################################################
+# 1) SINGLE JOB, NO TEMP TAGS: Build both architectures locally with `--load`
+#    (using ephemeral: false), then create+push a single multi-arch manifest.
+#    No arch-specific images are pushed to Docker Hub.
+################################################################################
+
+name: SingleJob-LocalMultiArch
+
 on:
   push:
     branches:
-      - multiarch-test
+      - main
 
 jobs:
-  build-amd64:
+  build-and-push:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: recursive
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build amd64
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          platforms: linux/amd64
-          tags: saikrishnabairamoni/v2xhub:amd64-latest
 
-  build-arm64:
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
         with:
-          submodules: recursive
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Build arm64
-        uses: docker/build-push-action@v5
-        with:
-          push: true
-          platforms: linux/arm64
-          tags: saikrishnabairamoni/v2xhub:arm64-latest
+          platforms: arm64
 
-  manifest:
-    runs-on: ubuntu-22.04
-    needs: [build-amd64, build-arm64]
-    steps:
+      - name: Set up Buildx (persistent)
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+          use: true
+          ephemeral: false
+          driver-opts: |
+            image=moby/buildkit:rootless
+            network=host
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Create and push multi-arch manifest
+
+      - name: Build amd64 (local only)
         run: |
-          docker manifest create saikrishnabairamoni/v2xhub:multiarch-test \
-            saikrishnabairamoni/v2xhub:amd64-latest \
-            saikrishnabairamoni/v2xhub:arm64-latest
-          docker manifest push saikrishnabairamoni/v2xhub:multiarch-test
+          docker buildx build \
+            --platform linux/amd64 \
+            --load \
+            -t myuser/v2xhub:local-amd64 \
+            .
+
+      - name: Build arm64 (local only)
+        run: |
+          docker buildx build \
+            --platform linux/arm64 \
+            --load \
+            -t myuser/v2xhub:local-arm64 \
+            .
+
+      - name: Create + push multi-arch
+        run: |
+          docker manifest create myuser/v2xhub:multiarch-only \
+            myuser/v2xhub:local-amd64 \
+            myuser/v2xhub:local-arm64
+          docker manifest annotate myuser/v2xhub:multiarch-only \
+            myuser/v2xhub:local-amd64 --arch amd64
+          docker manifest annotate myuser/v2xhub:multiarch-only \
+            myuser/v2xhub:local-arm64 --arch arm64
+          docker manifest push myuser/v2xhub:multiarch-only
