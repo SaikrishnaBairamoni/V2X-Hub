@@ -1,6 +1,10 @@
 ARG UBUNTU_VERSION=jammy-20230126
+ARG TARGETPLATFORM
 
-FROM ubuntu:$UBUNTU_VERSION AS dependencies
+######################
+# Dependencies stage #
+######################
+FROM --platform=$TARGETPLATFORM ubuntu:$UBUNTU_VERSION AS dependencies
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -9,7 +13,7 @@ ADD scripts/install_dependencies.sh /usr/local/bin/
 RUN sed -i 's|http://archive.ubuntu.com|http://us.archive.ubuntu.com|g' /etc/apt/sources.list
 RUN /usr/local/bin/install_dependencies.sh
 
-# 2. Build ext components
+# 2. Build ext components (all for ARM if platform=linux/arm64)
 COPY ./ext /home/V2X-Hub/ext
 WORKDIR /home/V2X-Hub/ext
 RUN ./build.sh
@@ -17,8 +21,8 @@ RUN ./build.sh
 # 3. Copy container scripts
 ADD container/wait-for-it.sh /usr/local/bin/
 ADD container/service.sh /usr/local/bin/
-
 COPY ./container /home/V2X-Hub/container
+
 WORKDIR /home/V2X-Hub/container
 RUN ./database.sh
 RUN ./library.sh
@@ -37,8 +41,12 @@ WORKDIR /home/V2X-Hub/src
 RUN ./build.sh release
 RUN ldconfig
 
-# --- Final image ---
-FROM ubuntu:$UBUNTU_VERSION AS v2xhub
+
+######################
+# Final image stage  #
+######################
+FROM --platform=$TARGETPLATFORM ubuntu:$UBUNTU_VERSION AS v2xhub
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 ADD scripts/deployment_dependencies.sh /usr/local/bin/
@@ -50,7 +58,7 @@ RUN ./database.sh
 RUN ./library.sh
 RUN ldconfig
 
-# Copy build outputs from 'dependencies' stage
+# Copy build outputs from 'dependencies' stage (now also ARM64 if you run for ARM)
 COPY --from=dependencies /usr/local/plugins/ /usr/local/plugins/
 COPY --from=dependencies /usr/local/include/ /usr/local/include/
 COPY --from=dependencies /usr/local/lib/ /usr/local/lib/
