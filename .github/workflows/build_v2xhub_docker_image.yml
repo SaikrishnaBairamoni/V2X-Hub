@@ -2,7 +2,7 @@ name: Build Single Multi‐Arch Image Only
 
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ multiarch-test ]
   pull_request:
 
 jobs:
