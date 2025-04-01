@@ -1,12 +1,11 @@
-name: SingleJob-PrivateRegistry
-
+name: Build V2X-Hub Docker Image
 on:
   push:
     branches:
       - multiarch-test
 
 jobs:
-  build-and-push:
+  build-amd64:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -14,12 +13,12 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: arm64
+      - name: Show r63 folder
+        run: |
+          echo "=== Debugging r63 for AMD64 job ==="
+          ls -R src/tmx/Asn_J2735/src/r63 || true
 
-      - name: Set up Buildx
+      - name: Set up Docker Buildx (no ephemeral)
         uses: docker/setup-buildx-action@v3
         with:
           install: true
@@ -29,30 +28,42 @@ jobs:
             image=moby/buildkit:rootless
             network=host
 
-      - name: Start local registry
-        run: |
-          docker run -d -p 5000:5000 --name registry registry:2
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build amd64 -> local registry
-        run: |
-          docker buildx build \
-            --platform linux/amd64 \
-            --push \
-            -t localhost:5000/v2xhub:amd64-temp \
-            .
+      - name: Build amd64
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          platforms: linux/amd64
+          tags: saikrishnabairamoni/v2xhub:amd64-latest
 
-      - name: Build arm64 -> local registry
-        run: |
-          docker buildx build \
-            --platform linux/arm64 \
-            --push \
-            -t localhost:5000/v2xhub:arm64-temp \
-            .
 
-      - name: Pull them locally to unify
+  build-arm64:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Show r63 folder
         run: |
-          docker pull localhost:5000/v2xhub:amd64-temp
-          docker pull localhost:5000/v2xhub:arm64-temp
+          echo "=== Debugging r63 for ARM64 job ==="
+          ls -R src/tmx/Asn_J2735/src/r63 || true
+
+      - name: Set up Docker Buildx (no ephemeral)
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
+          use: true
+          ephemeral: false
+          driver-opts: |
+            image=moby/buildkit:rootless
+            network=host
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
@@ -60,18 +71,28 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Tag locally for final
-        run: |
-          docker tag localhost:5000/v2xhub:amd64-temp saikrishnabairamoni/v2xhub:local-amd64
-          docker tag localhost:5000/v2xhub:arm64-temp saikrishnabairamoni/v2xhub:local-arm64
+      - name: Build arm64
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          platforms: linux/arm64
+          tags: saikrishnabairamoni/v2xhub:arm64-latest
 
-      - name: Create + push final multi-arch to Docker Hub
+
+  manifest:
+    runs-on: ubuntu-22.04
+    needs: [build-amd64, build-arm64]
+    steps:
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Create and push multi-arch manifest
         run: |
           docker manifest create saikrishnabairamoni/v2xhub:multiarch-test \
-            saikrishnabairamoni/v2xhub:local-amd64 \
-            saikrishnabairamoni/v2xhub:local-arm64
-          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-test \
-            saikrishnabairamoni/v2xhub:local-amd64 --arch amd64
-          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-test \
-            saikrishnabairamoni/v2xhub:local-arm64 --arch arm64
+            saikrishnabairamoni/v2xhub:amd64-latest \
+            saikrishnabairamoni/v2xhub:arm64-latest
+
           docker manifest push saikrishnabairamoni/v2xhub:multiarch-test
