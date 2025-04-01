@@ -12,13 +12,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Show r63 folder
-        run: |
-          echo "=== Debugging r63 for AMD64 job ==="
-          ls -R src/tmx/Asn_J2735/src/r63 || true
-
-      - name: Set up Docker Buildx (no ephemeral)
+      - name: Set up Docker Buildx (using v2)
         uses: docker/setup-buildx-action@v2
         with:
           install: true
@@ -27,20 +21,18 @@ jobs:
           driver-opts: |
             image=moby/buildkit:rootless
             network=host
-
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build amd64
+      - name: Build amd64 tag
         uses: docker/build-push-action@v5
         with:
           push: true
           no-cache: true
           platforms: linux/amd64
-          tags: saikrishnabairamoni/v2xhub:amd64-latest
+          tags: saikrishnabairamoni/v2xhub:amd64
 
   build-arm64:
     runs-on: ubuntu-22.04
@@ -49,18 +41,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Show r63 folder
-        run: |
-          echo "=== Debugging r63 for ARM64 job ==="
-          ls -R src/tmx/Asn_J2735/src/r63 || true
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-        with:
-          platforms: arm64
-
-      - name: Set up Docker Buildx (no ephemeral)
+      - name: Set up Docker Buildx (using v2)
         uses: docker/setup-buildx-action@v2
         with:
           install: true
@@ -69,20 +50,18 @@ jobs:
           driver-opts: |
             image=moby/buildkit:rootless
             network=host
-
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build arm64
+      - name: Build arm64 tag
         uses: docker/build-push-action@v5
         with:
           push: true
           no-cache: true
           platforms: linux/arm64
-          tags: saikrishnabairamoni/v2xhub:arm64-latest
+          tags: saikrishnabairamoni/v2xhub:arm64
 
   manifest:
     runs-on: ubuntu-22.04
@@ -93,10 +72,13 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Create and push multi-arch manifest
         run: |
           docker manifest create saikrishnabairamoni/v2xhub:multiarch-test \
-            saikrishnabairamoni/v2xhub:amd64-latest \
-            saikrishnabairamoni/v2xhub:arm64-latest
+            saikrishnabairamoni/v2xhub:amd64 \
+            saikrishnabairamoni/v2xhub:arm64
+          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-test \
+            saikrishnabairamoni/v2xhub:amd64 --arch amd64
+          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-test \
+            saikrishnabairamoni/v2xhub:arm64 --arch arm64
           docker manifest push saikrishnabairamoni/v2xhub:multiarch-test
