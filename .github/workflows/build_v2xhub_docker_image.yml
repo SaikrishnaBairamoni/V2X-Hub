@@ -30,7 +30,7 @@ jobs:
           platforms: linux/amd64
           push: true
           no-cache: true
-          tags: saikrishnabairamoni/v2xhub:amd64
+          tags: saikrishnabairamoni/v2xhub:amd64-latest
 
   build-arm64:
     runs-on: [self-hosted, arm64]
@@ -56,7 +56,7 @@ jobs:
           platforms: linux/arm64
           push: true
           no-cache: true
-          tags: saikrishnabairamoni/v2xhub:arm64
+          tags: saikrishnabairamoni/v2xhub:arm64-latest
 
   manifest:
     runs-on: ubuntu-22.04
@@ -70,17 +70,17 @@ jobs:
 
       - name: Create and push multi-arch manifest
         run: |
-          # Combine the two single-arch tags into a multi-arch manifest
-          docker manifest create saikrishnabairamoni/v2xhub:multiarch-test \
-            saikrishnabairamoni/v2xhub:amd64 \
-            saikrishnabairamoni/v2xhub:arm64
+          # Create the multi-arch manifest under ONE name
+          docker manifest create saikrishnabairamoni/v2xhub:multiarch-test1 \
+            saikrishnabairamoni/v2xhub:amd64-latest \
+            saikrishnabairamoni/v2xhub:arm64-latest
 
-          # Annotate each single-arch image appropriately
-          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-test \
-            saikrishnabairamoni/v2xhub:amd64 --arch amd64
+          # Annotate each single-arch image
+          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-test1 \
+            saikrishnabairamoni/v2xhub:amd64-latest --arch amd64
 
-          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-test \
-            saikrishnabairamoni/v2xhub:arm64 --arch arm64
+          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-test1 \
+            saikrishnabairamoni/v2xhub:arm64-latest --arch arm64
 
           # Push the final multi-arch manifest
-          docker manifest push saikrishnabairamoni/v2xhub:multiarch-test
+          docker manifest push saikrishnabairamoni/v2xhub:multiarch-test1
