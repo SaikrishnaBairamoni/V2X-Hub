@@ -1,9 +1,9 @@
 name: Build V2X-Hub Docker Image
 on:
+  workflow_dispatch:
   push:
     branches:
       - multiarch-test
-  workflow_dispatch:
 
 jobs:
   build-amd64:
