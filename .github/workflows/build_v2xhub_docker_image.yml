@@ -1,86 +1,117 @@
-name: Build V2X-Hub Docker Image
+name: Build Multi-Arch (Local Saves, Single Final Push)
 on:
-  workflow_dispatch:
   push:
     branches:
       - multiarch-test
+  workflow_dispatch:
 
 jobs:
+  # 1) Build an AMD64 image on the standard GitHub runner
   build-amd64:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout
+      - name: Check out source
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      - name: Set up Docker Buildx
+      - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build AMD64 image locally
+        run: |
+          # Build the image *locally* (no pushing). 
+          # --load loads the built image into the local Docker daemon on the runner.
+          docker buildx build \
+            --platform=linux/amd64 \
+            --load \
+            --tag v2xhub:amd64-local \
+            .
 
-      - name: Build amd64 tag
-        uses: docker/build-push-action@v5
+      - name: Save AMD64 image as artifact
+        run: |
+          # Export that local image to a tar file
+          docker save -o v2xhub_amd64.tar v2xhub:amd64-local
+        # Upload the tar file to GitHub Actions artifacts
+      - name: Upload AMD64 artifact
+        uses: actions/upload-artifact@v3
         with:
-          context: .
-          platforms: linux/amd64
-          push: true
-          no-cache: true
-          tags: saikrishnabairamoni/v2xhub:amd64-latest
+          name: v2xhub_amd64
+          path: v2xhub_amd64.tar
 
+  # 2) Build an ARM64 image on your self-hosted ARM runner
   build-arm64:
     runs-on: [self-hosted, arm64]
     steps:
-      - name: Checkout
+      - name: Check out source
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
-      - name: Set up Docker Buildx
+      - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - name: Build ARM64 image locally
+        run: |
+          docker buildx build \
+            --platform=linux/arm64 \
+            --load \
+            --tag v2xhub:arm64-local \
+            .
 
-      - name: Build arm64 tag
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          platforms: linux/arm64
-          push: true
-          no-cache: true
-          tags: saikrishnabairamoni/v2xhub:arm64-latest
+      - name: Save ARM64 image as artifact
+        run: |
+          docker save -o v2xhub_arm64.tar v2xhub:arm64-local
 
+      - name: Upload ARM64 artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: v2xhub_arm64
+          path: v2xhub_arm64.tar
+
+  # 3) Final job: combine both images into a multi-arch image, then push to Docker Hub
   manifest:
     runs-on: ubuntu-22.04
     needs: [build-amd64, build-arm64]
     steps:
+      - name: Download AMD64 artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: v2xhub_amd64
+
+      - name: Download ARM64 artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: v2xhub_arm64
+
+      - name: Load both images locally
+        run: |
+          docker load -i v2xhub_amd64.tar
+          docker load -i v2xhub_arm64.tar
+        #
+        # Now we have *two* local images:
+        #   v2xhub:amd64-local  (linux/amd64)
+        #   v2xhub:arm64-local  (linux/arm64)
+
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Create and push multi-arch manifest
+      - name: Tag locally to your Docker Hub repo
         run: |
-          # Create the multi-arch manifest under ONE name
-          docker manifest create saikrishnabairamoni/v2xhub:multiarch-test1 \
-            saikrishnabairamoni/v2xhub:amd64-latest \
-            saikrishnabairamoni/v2xhub:arm64-latest
+          # We'll give them ephemeral tags (just to reference in manifest create)
+          docker tag v2xhub:amd64-local saikrishnabairamoni/v2xhub:local-amd64
+          docker tag v2xhub:arm64-local saikrishnabairamoni/v2xhub:local-arm64
 
-          # Annotate each single-arch image
-          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-test1 \
-            saikrishnabairamoni/v2xhub:amd64-latest --arch amd64
+      - name: Create & push multi-arch manifest
+        run: |
+          # Create a new multi-arch manifest referencing these local tags
+          docker manifest create saikrishnabairamoni/v2xhub:multiarch-latest \
+            saikrishnabairamoni/v2xhub:local-amd64 \
+            saikrishnabairamoni/v2xhub:local-arm64
 
-          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-test1 \
-            saikrishnabairamoni/v2xhub:arm64-latest --arch arm64
+          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-latest \
+            saikrishnabairamoni/v2xhub:local-amd64 --arch amd64
+          docker manifest annotate saikrishnabairamoni/v2xhub:multiarch-latest \
+            saikrishnabairamoni/v2xhub:local-arm64 --arch arm64
 
-          # Push the final multi-arch manifest
-          docker manifest push saikrishnabairamoni/v2xhub:multiarch-test1
+          # Now push that single multi-arch manifest to Docker Hub
+          docker manifest push saikrishnabairamoni/v2xhub:multiarch-latest
