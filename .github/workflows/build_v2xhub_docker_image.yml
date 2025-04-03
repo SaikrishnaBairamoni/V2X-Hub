@@ -27,7 +27,7 @@ jobs:
           platforms: linux/amd64
           push: true
           no-cache: true
-          singlePlatform: true
+          provenance: false
           tags: saikrishnabairamoni/v2xhub:amd64-ephemeral-${{ github.run_id }}-${{ github.sha }}
     
   build-arm64:
@@ -52,7 +52,7 @@ jobs:
           platforms: linux/arm64
           push: true
           no-cache: true
-          singlePlatform: true
+          provenance: false
           tags: saikrishnabairamoni/v2xhub:arm64-ephemeral-${{ github.run_id }}-${{ github.sha }}
 
   manifest:
