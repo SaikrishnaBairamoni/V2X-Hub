@@ -51,7 +51,6 @@ jobs:
           platforms: linux/arm64
           push: true
           no-cache: true
-          # ephemeral tag must match same pattern
           tags: saikrishnabairamoni/v2xhub:arm64-ephemeral-${{ github.run_id }}-${{ github.sha }}
 
   manifest:
