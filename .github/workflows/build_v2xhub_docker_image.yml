@@ -1,8 +1,8 @@
-name: Build Multi-Arch
+name: Build Multi-Arch 
 on:
+  workflow_dispatch:
   push:
     branches: [ "multiarch-test" ]
-  workflow_dispatch:
 
 jobs:
   build-amd64:
