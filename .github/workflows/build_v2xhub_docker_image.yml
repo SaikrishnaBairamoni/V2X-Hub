@@ -84,9 +84,6 @@ jobs:
         run: |
           docker load -i v2xhub_amd64.tar
           docker load -i v2xhub_arm64.tar
-          # Now the local Docker daemon has:
-          #   v2xhub:amd64-local (linux/amd64)
-          #   v2xhub:arm64-local (linux/arm64)
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
