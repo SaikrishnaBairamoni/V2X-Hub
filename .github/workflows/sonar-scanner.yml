@@ -1,9 +1,7 @@
 on:
   push:
     branches:
-      - develop
-      - master
-      - "release/*"
+      - test
   pull_request:
     types: [opened, synchronize, reopened]
 name: Sonar Workflow

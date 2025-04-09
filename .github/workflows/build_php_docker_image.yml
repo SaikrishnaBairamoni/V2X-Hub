@@ -2,9 +2,7 @@ name: Build PHP V2X-Hub Web UI
 on:
   push:
     branches:
-      - develop
-      - master
-      - 'release/**'
+      - test
       # Build all tags not containing a / (https://stackoverflow.com/questions/61891328/trigger-github-action-only-on-new-tags  )
     tags:
       - '*'
