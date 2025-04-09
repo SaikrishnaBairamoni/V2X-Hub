@@ -33,8 +33,8 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          provenance: false
-          tags: usdotfhwaops/v2xhub:amd64
+          provenance: false # Disable Buildx provenance metadata to avoid manifest-related errors. Without this, Docker may treat single-arch images as manifest lists, which causes issues when combining them with `docker manifest create`
+          tags: saikrishnabairamoni/v2xhub:amd64
 
   build-arm64:
     runs-on: ubuntu-24.04-arm
@@ -60,7 +60,7 @@ jobs:
           platforms: linux/arm64
           push: true
           provenance: false
-          tags: usdotfhwaops/v2xhub:arm64
+          tags: saikrishnabairamoni/v2xhub:arm64
 
   manifest:
     runs-on: ubuntu-22.04
@@ -75,10 +75,10 @@ jobs:
       - name: Create final multi-arch
         run: |
           # Reference the same dynamic tags from the two build jobs
-          AMD64_TAG="usdotfhwaops/v2xhub:amd64"
-          ARM64_TAG="usdotfhwaops/v2xhub:arm64"
+          AMD64_TAG="saikrishnabairamoni/v2xhub:amd64"
+          ARM64_TAG="saikrishnabairamoni/v2xhub:arm64"
           # Final multi-arch tag will also reflect the branch/tag name
-          FINAL_TAG="usdotfhwaops/v2xhub:${{ github.ref_name }}"
+          FINAL_TAG="saikrishnabairamoni/v2xhub:${{ github.ref_name }}"
 
           docker manifest create "$FINAL_TAG" \
             "$AMD64_TAG" \
